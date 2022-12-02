@@ -146,7 +146,7 @@ public class UserController {
 		return "profile";
 	}
 	
-	@GetMapping("/profile")
+  @RequestMapping(value = "/profile", method = RequestMethod.GET)
 	public String getProfile() {
 		String userName = "Mithra";
 		System.out.println("In getProfile");
