@@ -263,10 +263,13 @@ public class UserController {
 
 		Wallet wallet = walletService.getWallet(walletId, symbol);
 		Double balance = wallet.getBalance();
+		
+		List<Wallet> wallets = walletService.getWallets(walletId);
+		modelMap.addAttribute("wallets", wallets);
 
 		if (action.equals("withdraw")) {
 			if (amount > balance) {
-				modelMap.addAttribute("msg", "Maximum withdrawable amount is " + balance);
+				modelMap.addAttribute("msg", "Maximum withdrawable amount for " + symbol + " is " + balance);
 				return "viewBalance";
 			} else {
 				balance -= amount;
@@ -278,9 +281,6 @@ public class UserController {
 		wallet.setBalance(balance);
 		walletService.updateWallet(wallet);
 
-		List<Wallet> wallets = walletService.getWallets(walletId);
-
-		modelMap.addAttribute("wallets", wallets);
 		modelMap.addAttribute("msg", "Your Wallet balance is updated.");
 
 		return "viewBalance";
