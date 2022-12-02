@@ -7,6 +7,10 @@
 <title>Insert title here</title>
 </head>
 <body>
-<h2>Account successfully verified. Please click here to <a href="localLogin">Login</a></h2>
+<h2>Account successfully verified.</h2><br/>
+<pre>
+Please click here to perform <a href="localLogin">Local Login</a><br/>
+Please click here to perform <a href="googleLogin">Google Login</a><br/>
+</pre>
 </body>
 </html>

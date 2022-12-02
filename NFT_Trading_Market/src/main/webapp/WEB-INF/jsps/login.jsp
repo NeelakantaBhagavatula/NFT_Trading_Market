@@ -12,7 +12,8 @@
 <pre>
 Email : <input type="text" name="email" />
 Password : <input type="password" name="password" />
-<input type="submit" value="Login" />
+<input type="submit" value="Login" /><br/>
+<a href="googleLogin">Google Login</a><br/>
 ${msg}
 </pre>
 </form>

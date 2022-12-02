@@ -13,7 +13,7 @@
 <pre>
 First Name : <input type="text" name="firstName" />
 Last Name : <input type="text" name="lastName" />
-Username : <input type="text" name="email" />
+Email : <input type="text" name="email" />
 Nickname : <input type="text" name="nickName" />
 Password : <input type="password" name="password" />
 Confirm Password : <input type="password" name="confirmPassword" />

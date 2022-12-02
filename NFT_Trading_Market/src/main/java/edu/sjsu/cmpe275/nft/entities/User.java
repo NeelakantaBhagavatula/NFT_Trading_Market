@@ -20,7 +20,7 @@ public class User {
 	@Id
 	@GeneratedValue(strategy = GenerationType.AUTO)
 	@Column(name = "USER_ID")
-	private Long userId;
+	private Long id;
 
 	@Column(name = "FIRST_NAME")
 	private String firstName;
@@ -54,8 +54,8 @@ public class User {
 	private List<NFT> nfts;
 
 	@JsonManagedReference
-	@OneToOne(mappedBy = "walletId.user")
-	private Wallet wallet;
+	@OneToMany(mappedBy = "walletId.user")
+	private List<Wallet> wallets;
 	
 	@JsonManagedReference
 	@OneToMany(mappedBy = "seller")
@@ -81,12 +81,12 @@ public class User {
 		this.transactions = transactions;
 	}
 
-	public Long getUserId() {
-		return userId;
+	public Long getId() {
+		return id;
 	}
 
-	public void setUserId(Long userId) {
-		this.userId = userId;
+	public void setId(Long userId) {
+		this.id = userId;
 	}
 
 	public String getFirstName() {
@@ -169,12 +169,12 @@ public class User {
 		this.nfts = nfts;
 	}
 
-	public Wallet getWallet() {
-		return wallet;
+	public List<Wallet> getWallets() {
+		return wallets;
 	}
 
-	public void setWallet(Wallet wallet) {
-		this.wallet = wallet;
+	public void setWallets(List<Wallet> wallets) {
+		this.wallets = wallets;
 	}
 
 	public List<Sale> getSellerSales() {

@@ -7,6 +7,6 @@
 <title>Verification Failure</title>
 </head>
 <body>
-${error}
+${msg}
 </body>
 </html>

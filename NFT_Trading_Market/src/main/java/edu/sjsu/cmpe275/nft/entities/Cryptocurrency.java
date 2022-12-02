@@ -32,6 +32,15 @@ public class Cryptocurrency {
 	@JsonManagedReference
 	@OneToMany(mappedBy = "cryptocurrency")
 	private List<Transaction> transactions;
+	
+	public Cryptocurrency() {
+		
+	}
+
+	public Cryptocurrency(String symbol, String name) {
+		this.symbol = symbol;
+		this.name = name;
+	}
 
 	public String getSymbol() {
 		return symbol;

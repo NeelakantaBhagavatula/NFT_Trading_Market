@@ -14,7 +14,7 @@ import javax.persistence.Table;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 
-@Entity
+@Entity(name = "nft")
 @Table(name = "NFT")
 public class NFT {
 

@@ -18,6 +18,8 @@ import javax.persistence.Table;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 
+import edu.sjsu.cmpe275.nft.entities.enums.SalesType;
+
 @Entity
 @Table(name = "SALE")
 public class Sale {
@@ -25,7 +27,7 @@ public class Sale {
 	@Id
 	@GeneratedValue(strategy = GenerationType.AUTO)
 	@Column(name = "SALE_ID")
-	private int saleId;
+	private Long id;
 	
 	@Column(name = "TYPE")
 	@Enumerated(EnumType.ORDINAL)
@@ -67,12 +69,12 @@ public class Sale {
 	@JoinColumn(name = "SYMBOL")
 	private Cryptocurrency cryptocurrency;
 	
-	public int getSaleId() {
-		return saleId;
+	public long getId() {
+		return id;
 	}
 
-	public void setSaleId(int saleId) {
-		this.saleId = saleId;
+	public void setId(long saleId) {
+		this.id = saleId;
 	}
 
 	public SalesType getType() {

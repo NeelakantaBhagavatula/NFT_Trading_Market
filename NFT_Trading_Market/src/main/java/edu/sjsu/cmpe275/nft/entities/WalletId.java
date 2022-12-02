@@ -13,7 +13,7 @@ public class WalletId implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	@OneToOne
+	@ManyToOne
 	@JoinColumn(name = "WALLET_ID", referencedColumnName = "USER_ID")
 	private User user;
 
@@ -26,7 +26,6 @@ public class WalletId implements Serializable {
 	}
 
 	public WalletId(User user, Cryptocurrency cryptocurrency) {
-		super();
 		this.user = user;
 		this.cryptocurrency = cryptocurrency;
 	}

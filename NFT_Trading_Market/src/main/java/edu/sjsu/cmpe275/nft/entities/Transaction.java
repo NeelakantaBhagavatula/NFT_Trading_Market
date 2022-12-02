@@ -20,7 +20,7 @@ public class Transaction {
 	@Id
 	@GeneratedValue(strategy = GenerationType.AUTO)
 	@Column(name = "TRANSACTION_ID")
-	private int transactionId;
+	private Long id;
 	
 	@Column(name = "TRANSACTION_TYPE")
 	private String transactionType;
@@ -49,12 +49,12 @@ public class Transaction {
 	@JoinColumn(name = "SYMBOL")
 	private Cryptocurrency cryptocurrency;
 
-	public int getTransactionId() {
-		return transactionId;
+	public Long getTransactionId() {
+		return id;
 	}
 
-	public void setTransactionId(int transactionId) {
-		this.transactionId = transactionId;
+	public void setTransactionId(Long transactionId) {
+		this.id = transactionId;
 	}
 
 	public String getTransactionType() {

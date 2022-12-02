@@ -20,7 +20,7 @@ public class Bid {
 	@Id
 	@GeneratedValue(strategy = GenerationType.AUTO)
 	@Column(name = "BID_ID")
-	private int bidId;
+	private Long id;
 
 	@Column(name = "BID_TIME")
 	private Timestamp bidTime;
@@ -44,12 +44,12 @@ public class Bid {
 	@JoinColumn(name = "BIDDER_ID", referencedColumnName = "USER_ID")
 	private User user;
 
-	public int getBidId() {
-		return bidId;
+	public long getId() {
+		return id;
 	}
 
-	public void setBidId(int bidId) {
-		this.bidId = bidId;
+	public void setId(long id) {
+		this.id = id;
 	}
 
 	public Timestamp getBidTime() {

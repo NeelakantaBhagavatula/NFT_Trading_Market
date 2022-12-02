@@ -27,9 +27,6 @@ public class UserServiceImpl implements UserService {
 	@Autowired
 	private JavaMailSender mailSender;
 
-	@Value("${spring.mail.username}")
-	private String fromEmail;
-
 	@Override
 	@Transactional
 	public User getUserByEmail(String email) {
@@ -51,15 +48,15 @@ public class UserServiceImpl implements UserService {
 	@Async
 	@Override
 	public void sendEmailForVerification(User user) throws Exception {
-		String host;
+		String host = InetAddress.getLocalHost().getHostName();
 		MimeMessage message = mailSender.createMimeMessage();
 
 		try {
-			host = InetAddress.getLocalHost().getHostName();
+//			host = InetAddress.getLocalHost().getHostName();
 			MimeMessageHelper helper = new MimeMessageHelper(message, true);
 			helper.setTo(user.getEmail());
 			helper.setSubject("Registration Verification");
-			helper.setText("Please click here http://" + host + ":" + PORT +"/confirmAccount?token=" + user.getToken() + " to verify your account.");
+			helper.setText("Please click here http://localhost:" + PORT +"/confirmAccount?token=" + user.getToken() + " to verify your account.");
 			mailSender.send(message);
 		} catch (Exception ex) {
 			throw ex;
@@ -67,8 +64,15 @@ public class UserServiceImpl implements UserService {
 	}
 	
 	@Override
+	@Transactional
 	public User getByToken(String token) {
 		return userRepository.findByToken(token);
+	}
+	
+	@Override
+	@Transactional
+	public User getById( long userId ) {
+		return userRepository.getReferenceById( userId );
 	}
 
 }

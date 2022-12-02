@@ -13,4 +13,6 @@ public interface UserService {
 	void sendEmailForVerification(User user) throws Exception;
 	
 	User getByToken(String token);
+	
+	User getById( long userId );
 }
