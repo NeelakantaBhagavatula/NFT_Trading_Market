@@ -9,120 +9,97 @@
 <meta charset="ISO-8859-1">
 <title>Browse NFT's Listed for Sale</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,300,0,0" />
+<link href="/css/style.css" rel="stylesheet" type="text/css">
 </head>
 <body>
-	<div align="center">
-		<table border="1" cellpadding="5">
-			<caption>
-				<h2>Priced sales</h2>
-				<c:if test="${msg}"><h3>${msg}</h3></c:if>
-			</caption>
-			<tr>
-				<th colspan="4">NFT</th>
-				<th colspan="3">Sale</th>
-			</tr>
-			<tr>
-				<th>Name</th>
-				<th>Type</th>
-				<th>Description</th>
-				<th>Image</th>
-				<th>Date</th>
-				<th>Status</th>
-				<th>Action</th>
-			</tr>
-			<c:forEach items="${priced}" var="sale">
+	<div align="right">
+		<a href="/profile">Back to Profile</a> | <a href="/logout">Logout</a>
+	</div>
+	</br>
+	<c:choose>
+		<c:when test="${sales.size() == 0}">
+			<div align="center"> <h3>You haven't created any sales yet.</h3></div>
+		</c:when>
+		<c:otherwise>
 			
-			<c:choose>
-				<c:when test="${sale.closingTime == null}">
-					<c:set var = "status" value = "Pending"/>
-				</c:when>
-				<c:when test="${sale.buyer == null}">
-					<c:set var = "status" value = "Canceled"/>
-				</c:when>
-				<c:otherwise>
-					<c:set var = "status" value = "Sold"/>
-				</c:otherwise>
-			</c:choose>
-				
-				<tr>
-					<td><c:out value="${sale.nft.name}" /></td>
-					<td><c:out value="${sale.nft.type}" /></td>
-					<td><c:out value="${sale.nft.description}" /></td>
-					<td><c:out value="${sale.nft.imageUrl}" /></td>
-					<td><fmt:formatDate type = "both" dateStyle = "short" timeStyle = "short" value = "${sale.creationTime}" /></td>
-					<td><c:out value="${status}" /></td>
-					<td>
-						<c:if test = "${status == 'Pending'}">
-							<a href="/sale/cancel/<c:out value="${sale.id}" />">
-  								<span class="material-symbols-outlined">cancel</span>
-							</a>
-						</c:if>
-					</td>
-				</tr>
-			</c:forEach>
-		</table>
-	</div>
-	<br>
-	<div align="center">
-		<table border="1" cellpadding="5">
-			<caption>
-				<h2>Auction sales</h2>
-				<c:if test="${msg}"><h3>${msg}</h3></c:if>
-			</caption>
-			<tr>
-				<th colspan="4">NFT</th>
-				<th colspan="5">Sale</th>
-			</tr>
-			<tr>
-				<th>Name</th>
-				<th>Type</th>
-				<th>Description</th>
-				<th>Image</th>
-				<th>Date</th>
-				<th>Highest Offer</th>
-				<th>Expiration time</th>
-				<th>Status</th>
-				<th>Action</th>
-			</tr>
-			<c:forEach items="${auction}" var="sale">
-			
-				<c:choose>
-					<c:when test="${sale.closingTime == null}">
-						<c:set var = "status" value = "Pending"/>
-					</c:when>
-					<c:when test="${sale.buyer == null}">
-						<c:set var = "status" value = "Canceled"/>
-					</c:when>
-					<c:otherwise>
-						<c:set var = "status" value = "Sold"/>
-					</c:otherwise>
-				</c:choose>
-				
-				<c:set var = "bid" value = "${sale.bids[fn:length(sale.bids)-1]}"/>
-				
-				<tr>
-					<td><c:out value="${sale.nft.name}" /></td>
-					<td><c:out value="${sale.nft.type}" /></td>
-					<td><c:out value="${sale.nft.description}" /></td>
-					<td><c:out value="${sale.nft.imageUrl}" /></td>
-					<td><fmt:formatDate type = "both" dateStyle = "short" timeStyle = "short" value = "${sale.creationTime}" /></td>
-					<td><c:out value="${bid.bidValue}" /></td>
-					<td><fmt:formatDate type = "both" dateStyle = "short" timeStyle = "short" value = "${bid.expirationTime}" /></td>
-					<td><c:out value="${status}" /></td>
-					<td>
-						<c:if test = "${status == 'Pending'}">
-							<a href="/sale/cancel/<c:out value="${sale.id}" />">
-  								<span class="material-symbols-outlined">close</span>
-							</a>
-						</c:if>
-					</td>
-				</tr>
-			</c:forEach>
-		</table>
-	</div>
-	<div align="center">
-		<a href="/profile">Back to Profile</a><br/>
-		<a href="/logout">Logout</a>
-	</div>
+			<div align="center">
+				<h3><c:out value="${msg}"/></h3>
+			</div>
+			</br>
+			<div align="center">
+				<table border="0" cellpadding="5" style="width:70%">
+					<caption>
+						<h2>My Sales</h2>
+					</caption>
+					<thead>
+						<tr>
+							<th colspan="4">NFT</th>
+							<th colspan="5">Sale</th>
+							<th colspan="2">Auction</th>
+						</tr>
+					</thead>
+					<thead>
+						<tr>
+							<th>Image</th>
+							<th>Name</th>
+							<th>Type</th>
+							<th>Description</th>
+							<th>Listing time</th>
+					    	<th>Type</th>
+					    	<th>Expected value</th>
+							<th>Status</th>
+							<th>Cancel</th>
+							<th>Highest Offer</th>
+							<th>Expiration time</th>
+						</tr>
+					</thead>
+					<c:forEach items="${sales}" var="sale">
+					
+						<c:choose>
+							<c:when test="${sale.closingTime == null}">
+								<c:set var = "status" value = "Pending"/>
+							</c:when>
+							<c:when test="${sale.buyer == null}">
+								<c:set var = "status" value = "Canceled"/>
+							</c:when>
+							<c:otherwise>
+								<c:set var = "status" value = "Sold"/>
+							</c:otherwise>
+						</c:choose>
+						
+						<c:set var = "bid" value = "${sale.bids[fn:length(sale.bids)-1]}"/>
+						
+						<tr>
+							<td style="vertical-align:center; text-align:center;"><img src="${sale.nft.imageUrl}" alt="${sale.nft.name}"></td>
+							<td>${sale.nft.name}</td>
+						    <td>${sale.nft.type}</td>
+						    <td>${sale.nft.description}</td>
+						    <td class="center"><fmt:formatDate type = "both" dateStyle = "short" timeStyle = "short" value = "${sale.creationTime}" /></td>
+						    <td class="center">${sale.type}</td>
+						    <td class="center"><fmt:formatNumber type="number" maxFractionDigits="5" value="${sale.expectedValue}"/></td>
+						    <td class="center">${status}</td>
+						    <td class="center">
+						    	<c:choose>
+									<c:when test="${status == 'Pending'}"><span class="action_btn"><a href="/sale/cancel/${sale.id}" onclick="return confirm('Do you want to cancel this sale?');">Cancel order</a></span></c:when>
+									<c:otherwise>-</c:otherwise>
+								</c:choose>
+							</td>
+							<td class="center">
+								<c:choose>
+									<c:when test="${bid.bidValue > 0}"><fmt:formatNumber type="number" maxFractionDigits="5" value="${bid.bidValue}"/></c:when>
+									<c:otherwise>-</c:otherwise>
+								</c:choose>
+							<td class="center">
+								<c:choose>
+									<c:when test="${bid.bidValue > 0}"><fmt:formatDate type = "both" dateStyle = "short" timeStyle = "short" value = "${bid.expirationTime}" /></c:when>
+									<c:otherwise>-</c:otherwise>
+								</c:choose>
+							</td>
+						</tr>
+					</c:forEach>
+				</table>
+			</div>
+		</c:otherwise>
+	</c:choose>
 </body>
 </html>

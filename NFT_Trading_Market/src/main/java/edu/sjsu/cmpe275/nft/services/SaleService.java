@@ -16,7 +16,7 @@ public interface SaleService {
 
 	Bid saveBid(Bid bid);
 
-	Bid getPreviousActiveBid(Bid newBid);
+	Bid getPreviousActiveBid(Long saleId, Long userId);
 
 	Bid getHighestBid(Long saleId);
 	

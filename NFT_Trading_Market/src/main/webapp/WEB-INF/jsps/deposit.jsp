@@ -7,17 +7,20 @@
 <title>Deposit Currency to Wallet</title>
 </head>
 <body>
-
-<div align="center">
-	<form action="updateBalance" method="post">
-		<h2>Withdraw from Wallet :</h2>
-		<input type="number" step=".000001" min="0" name="balanceToWithdrawOrDeposit" />
-		<input type="hidden" name="walletId" value="${walletId}" />
-		<input type="hidden" name="symbol" value="${symbol}" />
-		<input type="hidden" name="action" value="deposit" />
-		<input type="submit" value="Deposit" />
-	</form>
-</div>
+	<div align="right">
+		<a href="/profile">Back to Profile</a> | <a href="/logout">Logout</a>
+	</div>
+	<br>
+	<div align="center">
+		<form action="updateBalance" method="post">
+			<h2>Withdraw from Wallet :</h2>
+			<input type="number" step=".000001" min="0" name="balanceToWithdrawOrDeposit" />
+			<input type="hidden" name="walletId" value="${walletId}" />
+			<input type="hidden" name="symbol" value="${symbol}" />
+			<input type="hidden" name="action" value="deposit" />
+			<input type="submit" value="Deposit" />
+		</form>
+	</div>
 
 </body>
 </html>

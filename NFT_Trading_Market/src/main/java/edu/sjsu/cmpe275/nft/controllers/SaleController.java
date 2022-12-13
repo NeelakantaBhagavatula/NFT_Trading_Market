@@ -5,12 +5,12 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.ui.ModelMap;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,9 +19,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.ModelAndView;
 
 import edu.sjsu.cmpe275.nft.entities.Bid;
+import edu.sjsu.cmpe275.nft.entities.Cryptocurrency;
 import edu.sjsu.cmpe275.nft.entities.NFT;
 import edu.sjsu.cmpe275.nft.entities.Sale;
 import edu.sjsu.cmpe275.nft.entities.User;
@@ -31,6 +33,7 @@ import edu.sjsu.cmpe275.nft.services.CryptocurrencyService;
 import edu.sjsu.cmpe275.nft.services.NFTService;
 import edu.sjsu.cmpe275.nft.services.SaleService;
 import edu.sjsu.cmpe275.nft.services.SecurityService;
+import edu.sjsu.cmpe275.nft.services.WalletService;
 
 @Controller
 @RequestMapping("/sale")
@@ -51,8 +54,13 @@ public class SaleController {
 	@Autowired
 	private NFTService nftService;
 	
+	@Autowired
+	private WalletService walletService;
+	
 	@GetMapping("/new/{token}")
 	public String newSale( @PathVariable("token") String token, ModelMap model ) {
+		
+		String message = null;
 		
 		model.addAttribute( "cryptos", cryptocurrencyService.getAll( ) );
 		model.addAttribute( "saleTypes", Arrays.asList( SalesType.values() ) );
@@ -63,11 +71,21 @@ public class SaleController {
 		
 		if( nft == null || !nft.getUser().equals(seller) ) {
 			
-			model.addAttribute( "message", "NFT doesn't exist or doesn't belong to user " + seller.getNickName() );
+			message = "NFT doesn't exist or doesn't belong to user " + seller.getNickName();
 			
-			return "saleMessage";
+		} else if ( hasOpenSale( nft ) ) {
+			
+			message = "It's not possible to have open sales from the same NFT at same time.";
 			
 		}
+		
+		if( message != null ) {
+			
+			model.addAttribute( "msg", message );
+			
+			return listMyNFT( model );
+			
+		} 
 		
 		model.addAttribute( "sale", new Sale( seller, nft ) );
 		
@@ -76,7 +94,7 @@ public class SaleController {
 	}
 	
 	@PostMapping("/save")
-	public ModelAndView createSale( @ModelAttribute("sale") Sale sale, ModelMap model ) {
+	public String createSale( @ModelAttribute("sale") Sale sale, ModelMap model ) {
 		
 		sale.setCreationTime( new Timestamp ( System.currentTimeMillis() ) );
 		
@@ -84,11 +102,9 @@ public class SaleController {
 		
 		model.addAttribute("msg", "Your sale was successfully created");
 		
-        return new ModelAndView("redirect:/sale", model );
+        return mySales( model );
 		
 	}
-	
-	
 	
 	@GetMapping("/makeOffer/{saleId}")
 	public ModelAndView makeOffer( @PathVariable("saleId") Long saleId, ModelMap model ) {
@@ -114,35 +130,17 @@ public class SaleController {
 	@GetMapping("/buy/{saleId}")
 	public String buyNft( @PathVariable("saleId") Long saleId, ModelMap model ) {
 		
-		String message = null;
-		
 		User buyer = securityService.getCurrentLoggedInUser();
 
 		Sale sale = saleService.getById( saleId );
 		
-		if( sale.getSeller().getId() == buyer.getId() ) {
-			
-			message = "Seller cannot buy his own NFT.";
-			
-		} else if( sale.getType() == SalesType.AUCTION ) {
-			
-			message = "It is not possible to buy a NFT from an Auction sale.";
-			
-		} else if( sale.getClosingTime() != null ) {
-
-			message = "It is not possible to buy NFT from a closed sale.";
-			
-		} else if( ! hasEnoughtBalance( sale, buyer ) ) {
-			
-			message = "You do not have enough " + sale.getCryptocurrency().getName() + " balance for this purchase."; 
-			
-		}
+		String message = checkPurchase(sale, buyer);
 		
 		if( message != null ) {
 			
 			model.addAttribute( "msg", message );
 			
-			return "redirect:/sale/listOpened";
+			return openedSale( model );
 			
 		} 
 		
@@ -156,8 +154,6 @@ public class SaleController {
 	public String bidOnAuction( @PathVariable("saleId") Long saleId, ModelMap model ) {
 		
 		String message = null;
-		
-		Bid bid = new Bid();
 		
 		User bidder = securityService.getCurrentLoggedInUser();
 
@@ -179,62 +175,111 @@ public class SaleController {
 		
 		if( message != null ) {
 			
-			model.addAttribute( "message", message );
+			model.addAttribute( "msg", message );
 			
-			return "saleMessage";
+			return openedSale( model );
 			
 		}
 		
-		bid.setSale(sale);
-		bid.setUser(bidder);
+		double minOffer = sale.getExpectedValue();
 		
-		model.addAttribute( "bid", bid );
+		Bid bid = getHighestActiveBid( sale.getBids() );
+		
+		if( bid != null ) {
+			
+			minOffer = bid.getBidValue();
+			
+		}
+		
+		model.addAttribute( "saleId", sale.getId() );
+		model.addAttribute( "minPrice", minOffer );
 		
 		return "bidForm";
 		
 	}
 	
 	@GetMapping("/purchase/{saleId}")
-	public ModelAndView purchaseNft( @PathVariable("saleId") Long saleId, ModelMap model ) {
+	public String purchaseNft( @PathVariable("saleId") Long saleId, ModelMap model ) {
 		
 		Sale sale = saleService.getById( saleId );
 		
+		User buyer = securityService.getCurrentLoggedInUser();
+		
+		String message = checkPurchase(sale, buyer);
+		
+		if( message != null ) {
+			
+			model.addAttribute( "msg", message );
+			
+			return openedSale( model );
+			
+		} 
+		
 		sale.setClosingTime( new Timestamp ( System.currentTimeMillis() ) );
 		
-		sale.setBuyer( securityService.getCurrentLoggedInUser() );
+		sale.setBuyer( buyer );
+		
+		sale.setReceivedValue( sale.getExpectedValue() );
+		
+		//Update the wallets balance
+		updateWallet( sale );
+		
+		// Changing the ownership of the NFT
+		sale.getNft().setLastRecordedDate( new Timestamp( System.currentTimeMillis() ) );
+		sale.getNft().setUser( securityService.getCurrentLoggedInUser() );
+		sale.getNft().setSmartContractAddress( UUID.randomUUID().toString() );
 		
 		saleService.save( sale );
 		
-		// TODO Change the ownership of the NFT
+		model.addAttribute("msg", "Your purchase has been successfully completed.");
 		
-		model.addAttribute("msg", "Your purchase was successfully closed.");
-		
-        return new ModelAndView("redirect:/listNFT", model );
+        return listMyNFT( model );
 		
 	}
 	
-	@PostMapping("/bid/makeBid")
-	public String makeBid( @ModelAttribute("bid") Bid bid, ModelMap model ) {
+	@PostMapping("/saveOffer")
+	public String makeBid( @RequestParam("saleId") Long saleId, @RequestParam("bidValue") double bidValue,  
+			               @RequestParam("hour") int hour, @RequestParam("minute") int minute, @RequestParam("second") int second, ModelMap model ) {
 		
-		Bid highestBid = saleService.getHighestBid( bid.getSale().getId() );
+		String message = null;
+		
+		Sale sale = saleService.getById( saleId );
+		
+		User bidder = securityService.getCurrentLoggedInUser();
+		
+		Bid highestBid = getHighestActiveBid( sale.getBids() );
 		
 		if( highestBid != null ) {
 			
-			if( bid.getBidValue() <= highestBid.getBidValue() ) {
+			if( bidValue <= highestBid.getBidValue() ) {
 				
-				model.addAttribute( "message", "Bid has to be greater then " + highestBid.getBidValue() + " " + highestBid.getSale().getCryptocurrency().getSymbol() );
-				
-				return "saleMessage";
+				message = "Bid has to be greater then " + highestBid.getBidValue() + " " + highestBid.getSale().getCryptocurrency().getSymbol();
 				
 			}
 			
-			highestBid.setExpirationTime( new Timestamp ( System.currentTimeMillis() ) );
+		} 
+		
+		if( hour == 0 && minute == 0 && second == 0 ) {
 			
-			saleService.saveBid( highestBid );
+			message = "You need to set the expiration time. Hour, minute, or second must be greater than zero.";
+			
+		} 
+		
+		if( !hasEnoughtBalance( sale, bidder, bidValue ) ) {
+			
+			message = "You don't have enough " + sale.getCryptocurrency().getName() + " balance for this purchase."; 
 			
 		}
 		
-		Bid previousBid = saleService.getPreviousActiveBid( bid );
+		if( message != null ) {
+			
+			model.addAttribute( "msg", message );
+			
+			return bidOnAuction( saleId, model );
+			
+		}
+		
+		Bid previousBid = saleService.getPreviousActiveBid( sale.getId(), bidder.getId() );
 		
 		if( previousBid != null ) {
 			
@@ -244,15 +289,27 @@ public class SaleController {
 			
 		}
 		
-		bid.setBidTime( new Timestamp ( System.currentTimeMillis() ) );
+		Bid newBid = new Bid();
 		
-		saleService.saveBid( bid );
+		Timestamp expiration = new Timestamp ( System.currentTimeMillis() );
 		
-		return "saleSuccess";
+		expiration.setTime( expiration.getTime() + ( ( ( hour * 60 * 60 ) + ( minute * 60 ) + second ) * 1000 ) );
+		
+		newBid.setBidTime( new Timestamp ( System.currentTimeMillis() ) );
+		newBid.setBidValue( bidValue );
+		newBid.setUser( bidder );
+		newBid.setSale( sale );
+		newBid.setExpirationTime( expiration );
+		
+		saleService.saveBid( newBid );
+		
+		model.addAttribute( "msg", "Your offer has been sent successfully." );
+		
+		return openedSale( model ) ;
 		
 	}
 	
-	@GetMapping("/bid/acceptOffer/{bidId}")
+	@GetMapping("/acceptOffer/{bidId}")
 	public String acceptOffer( @PathVariable("bidId") Long bidId, ModelMap model ) {
 		
 		Bid currentBid = saleService.getBidById( bidId );
@@ -269,7 +326,7 @@ public class SaleController {
 			
 		} else if( currentBid.getSale().getClosingTime() != null ) {
 			
-			message = "It is not possible to accept offers for sales that have already been closed.";
+			message = "It's not possible to accept offers for sales that have already been closed.";
 			
 		} else if( currentBid.getExpirationTime() != null && currentBid.getExpirationTime().before( new Timestamp( System.currentTimeMillis() ) ) ) {
 			
@@ -279,57 +336,173 @@ public class SaleController {
 			
 		}
 		
-		if( message != null ) {
+		if( message == null ) {
 			
-			model.addAttribute( "message", message );
+			// Changing the ownership of the NFT
+			currentBid.getSale().getNft().setLastRecordedDate( new Timestamp( System.currentTimeMillis() ) );
+			currentBid.getSale().getNft().setUser( currentBid.getUser() );
+			currentBid.getSale().getNft().setSmartContractAddress( UUID.randomUUID().toString() );
 			
-			return "saleMessage";
+			currentBid.getSale().setBuyer( currentBid.getUser() );
+			currentBid.getSale().setReceivedValue( currentBid.getBidValue() );
+			currentBid.getSale().setClosingTime( new Timestamp ( System.currentTimeMillis() ) );
+			
+			currentBid.setExpirationTime( new Timestamp( System.currentTimeMillis() ) );
+			
+			for( Bid aux : currentBid.getSale().getBids() ) {
+				
+				if( aux.getExpirationTime().after( currentBid.getExpirationTime() ) ) {
+					
+					aux.setExpirationTime( currentBid.getExpirationTime() );
+					
+				}
+				
+			}
+			
+			//Update the wallets balance
+			updateWallet( currentBid.getSale() );
+			
+			currentBid.setWasAccepted( true );
+			
+			saleService.saveBid( currentBid );
+			
+			message = "Your sale has been successfully completed.";
 			
 		}
 
-		// TODO Check if the bid is the highest offer?
-		// TODO Change the ownership of the NFT
+		model.addAttribute( "msg", message );
 		
-		currentBid.getSale().setBuyer( currentBid.getUser() );
-		currentBid.getSale().setReceivedValue( currentBid.getBidValue() );
-		currentBid.getSale().setClosingTime( new Timestamp ( System.currentTimeMillis() ) );
-		
-		currentBid.setWasAccepted( true );
-		
-		saleService.saveBid( currentBid );
-		
-		return "saleSuccess";
+		return mySales( model );
 		
 	}
 	
-	@RequestMapping( value = "/", method = RequestMethod.GET)
-	public String browse(ModelMap modelMap) {
+	@GetMapping("/cancel/{saleId}")
+	public ModelAndView cancelSale( @PathVariable("saleId") Long saleId, ModelMap model ) {
 		
-		User currentLoggedInUser = securityService.getCurrentLoggedInUser();
+		String forward = null;
 		
-		if (currentLoggedInUser == null) return "/";
+		Sale sale = saleService.getById( saleId );
 		
-		List<Sale> sales = saleService.getAllSalesListedBy(currentLoggedInUser);
-		List<NFT> nfts = new ArrayList<>();
-
-		for (Sale sale : sales) {
-			String tokenId = sale.getNft().getTokenId();
-			NFT nft = nftService.getNFTById(tokenId);
+		if( sale.getType() == SalesType.PRICED  ) {
 			
-			if (nft != null) {
-				nfts.add(nft);
-			}
+			forward = "forward:/sale/cancel/priced/" + sale.getId();
+			
+		} else {
+			
+			forward = "forward:/sale/cancel/auction/" + sale.getId();
+			
 		}
 		
-		modelMap.addAttribute("nfts", nfts);
+		return new ModelAndView( forward, model );
 		
-		return "browseNftsListedForSale";
+	}
+	
+	@GetMapping("/cancel/priced/{saleId}")
+	public String cancelPricedSale( @PathVariable("saleId") Long saleId, ModelMap model ) {
+		
+		String message = null;
+		
+		Sale sale = saleService.getById( saleId );
+		
+		if( sale.getClosingTime() != null ) {
+			
+			message = "It is not possible to cancel a sale that has already ended.";
+			
+		}
+		
+		if( message == null ) {
+			
+			sale.setClosingTime( new Timestamp ( System.currentTimeMillis() ) );
+			
+			message = "Your sale has been canceled successfully.";
+			
+		}
+		
+		model.addAttribute( "msg", message );
+		
+		return mySales( model );
+		
+	}
+	
+	@GetMapping("/cancel/auction/{saleId}")
+	public String cancelAuctionSale( @PathVariable("saleId") Long saleId, ModelMap model ) {
+		
+		String message = null;
+		
+		Sale sale = saleService.getById( saleId );
+		
+		if( sale.getClosingTime() != null ) {
+			
+			message = "It is not possible to cancel a sale that has already ended.";
+			
+		}
+		
+		if( message == null ) {
+			
+			Bid bid = getHighestActiveBid( sale.getBids() );
+			
+			if( bid != null ) {
+				
+				return acceptOffer( bid.getId(), model );
+				
+			}
+			
+			sale.setClosingTime( new Timestamp ( System.currentTimeMillis() ) );
+			
+			message = "Your sale has been canceled successfully.";
+			
+		}
+		
+		model.addAttribute( "msg", message );
+		
+		return mySales( model );
+		
+	}
+	
+	@GetMapping("/cancel/bid/{bidId}")
+	public String cancelBid( @PathVariable("bidId") Long bidId, ModelMap model ) {
+		
+		String message = null;
+		
+		Bid bid = saleService.getBidById( bidId );
+		
+		Bid highestBid = getHighestActiveBid( bid.getSale().getBids() );
+		
+		if( bid.equals(highestBid) ) {
+			
+			message = "It's not possible to cancel the highest bid.";
+			
+		}
+		
+		if( message == null ) {
+			
+			bid.setExpirationTime( new Timestamp ( System.currentTimeMillis() ) );
+			
+			saleService.saveBid( bid );
+			
+			message = "Your bid has been canceled successfully.";
+			
+		}
+		
+		model.addAttribute( "msg", message );
+		
+		return openedSale( model );
+		
 	}
 	
 	@GetMapping("/listOpened")
 	public String openedSale( ModelMap modelMap) {
 		
-		modelMap.addAttribute( "sales", saleService.getOpened( ) );
+		try {
+		    Thread.sleep( 500 );
+		} catch (InterruptedException ie) {
+		    Thread.currentThread().interrupt();
+		}
+		
+		List<Sale> sales = saleService.getOpened( );
+		
+		modelMap.addAttribute( "userId", securityService.getCurrentLoggedInUser().getId() );
+		modelMap.addAttribute( "sales", sales );
 		
 		return "listSaleOpened";
 		
@@ -340,39 +513,61 @@ public class SaleController {
 		
 		List<Sale> sales = saleService.getAllSalesListedBy( securityService.getCurrentLoggedInUser() );
 		
-		List<Sale> priced = new ArrayList<>();
-		List<Sale> auction = new ArrayList<>();
-		
 		for ( Sale sale : sales ) {
 			
-			if( sale.getType() == SalesType.PRICED ) {
+			if( sale.getType() == SalesType.AUCTION && sale.getBids() != null) {
 				
-				priced.add( sale );
-				
-			} else {
-				
-				auction.add( sale );
+				if( sale.getClosingTime() == null ) {
+					
+					sale.setBids( Arrays.asList( getHighestActiveBid( sale.getBids() ) ) );
+					
+				} else if( sale.getClosingTime() != null ) {
+					
+					if( sale.getBuyer() != null ) {
+						
+						for( Bid bid : sale.getBids() ) {
+							
+							if( bid.isWasAccepted() ) {
+								
+								sale.setBids( Arrays.asList( bid ) );
+								
+								break;
+								
+							}
+							
+						}
+						
+					} else {
+						
+						sale.setBids( null );
+						
+					}
+					
+				}
 				
 			}
 			
 		}
 		
-		modelMap.addAttribute( "priced", priced );
-		modelMap.addAttribute( "auction", auction );
+		modelMap.addAttribute( "sales", sales );
 		
 		return "browseNftsListedForSale";
 		
 	}
 	
-	private boolean hasEnoughtBalance( Sale sale, User buyer ) {
+	private boolean hasEnoughtBalance( Sale sale, User buyer, double price ) {
+		
+		System.out.println( "Checking hasEnoughtBalance" );
 		
 		List<Wallet> wallets = buyer.getWallets();
 		
 			for( Wallet wallet : wallets ) {
 					
-				if( wallet.getWalletId().getCryptocurrency().equals(sale.getCryptocurrency()) ) {
-						 
-					if( wallet.getBalance() < sale.getExpectedValue() ) { return false; }
+				if( wallet.getWalletId().getCryptocurrency().equals( sale.getCryptocurrency() ) ) {
+					
+					System.out.println( "Checking hasEnoughtBalance: " + sale.getCryptocurrency().getSymbol() );
+					
+					if( ( wallet.getBalance() - totalCommittedInAuctions( buyer, sale ) ) < price ) { return false; }
 					
 					break;
 						 
@@ -381,6 +576,104 @@ public class SaleController {
 			}
 		
 		return true;
+		
+	}
+	
+	private double totalCommittedInAuctions( User buyer, Sale sale ) {
+		
+		List<Bid> allBids = buyer.getBids();
+		
+		double totalCommittedToBids = 0;
+		
+		for( Bid bid : allBids ) {
+		
+			if( !bid.getSale().equals(sale) && bid.getExpirationTime().after( new Timestamp( System.currentTimeMillis() ) ) && bid.getSale().getCryptocurrency().equals( sale.getCryptocurrency() ) ) {
+				
+				totalCommittedToBids += bid.getBidValue();
+				
+			}
+			
+		}
+		
+		System.out.println( "Commited:" + totalCommittedToBids );
+		
+		return totalCommittedToBids;
+		
+	}
+	
+	private String listMyNFT(ModelMap modelMap) {
+		
+		modelMap.addAttribute("nfts", nftService.getAllNFTs( securityService.getCurrentLoggedInUser() ) );
+		
+		return "displayNfts";
+		
+	}
+	
+	private void updateWallet( Sale sale ) {
+		
+		walletService.addToBalance( sale.getSeller().getId(), sale.getCryptocurrency().getSymbol(), sale.getReceivedValue() );
+		
+		walletService.subtractFromBalance( sale.getBuyer().getId(), sale.getCryptocurrency().getSymbol(), sale.getReceivedValue() );
+		
+	}
+	
+	private Bid getHighestActiveBid( List<Bid> bids ) {
+		
+		int lastPos = bids.size() - 1;
+		
+		while( lastPos >= 0 ) {
+			
+			if( bids.get(lastPos).getExpirationTime().after( new Timestamp ( System.currentTimeMillis() ) ) ) {
+				
+				return bids.get(lastPos);
+				
+			}
+			
+			lastPos--;
+			
+		}
+		
+		return null;
+		
+	}
+	
+	private String checkPurchase( Sale sale, User buyer ) {
+		
+		String message = null;
+		
+		if( sale.getSeller().getId() == buyer.getId() ) {
+			
+			message = "Seller cannot buy his own NFT.";
+			
+		} else if( sale.getType() == SalesType.AUCTION ) {
+			
+			message = "It isn't possible to buy a NFT from an Auction sale.";
+			
+		} else if( sale.getClosingTime() != null ) {
+
+			message = "It isn't possible to buy NFT from a closed sale.";
+			
+		} else if( ! hasEnoughtBalance( sale, buyer, sale.getExpectedValue() ) ) {
+			
+			message = "You don't have enough " + sale.getCryptocurrency().getName() + " balance for this purchase."; 
+			
+		}
+		
+		return message;
+		
+	}
+	
+	private boolean hasOpenSale( NFT nft ) { 
+		
+		int lastPos = nft.getSales().size() - 1;
+		
+		if( lastPos >= 0 && nft.getSales().get( lastPos ).getClosingTime() == null ) {
+			
+			return true;
+			
+		}
+		
+		return false;
 		
 	}
 	

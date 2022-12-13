@@ -61,8 +61,8 @@ public class SaleServiceImpl implements SaleService {
 	
 	@Override
 	@Transactional
-	public Bid getPreviousActiveBid( Bid newBid ) {
-		return bidRepository.findTopBySaleIdAndUserIdOrderByIdDesc( newBid.getSale().getId(), newBid.getUser().getId() );
+	public Bid getPreviousActiveBid( Long saleId, Long userId ) {
+		return bidRepository.findTopBySaleIdAndUserIdOrderByIdDesc( saleId, userId );
 	}
 	
 	@Override

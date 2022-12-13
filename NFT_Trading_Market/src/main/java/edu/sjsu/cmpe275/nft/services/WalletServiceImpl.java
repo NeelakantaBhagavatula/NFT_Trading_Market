@@ -1,11 +1,13 @@
 package edu.sjsu.cmpe275.nft.services;
 
+import java.sql.Timestamp;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import edu.sjsu.cmpe275.nft.entities.Bid;
 import edu.sjsu.cmpe275.nft.entities.Cryptocurrency;
 import edu.sjsu.cmpe275.nft.entities.User;
 import edu.sjsu.cmpe275.nft.entities.Wallet;
@@ -75,4 +77,49 @@ public class WalletServiceImpl implements WalletService {
 		return walletRepository.findAllWalletsById(id);
 	}
 	
+	@Override
+	@Transactional
+	public void addToBalance(Long id, String symbol, double value) {
+		
+		Wallet wallet = walletRepository.findByIdAnySymbol(id, symbol);
+		
+		wallet.setBalance( wallet.getBalance() + value );
+		
+		walletRepository.save( wallet );
+		
+	}
+	
+	@Override
+	@Transactional
+	public void subtractFromBalance(Long id, String symbol, double value) {
+		
+		Wallet wallet = walletRepository.findByIdAnySymbol(id, symbol);
+		
+		wallet.setBalance( wallet.getBalance() - value );
+		
+		walletRepository.save( wallet );
+		
+	}
+	
+	@Override
+	public double getTotalCommittedInAuctions( User user, Cryptocurrency cryptocurrency ) {
+		
+		List<Bid> allBids = user.getBids();
+		
+		double totalCommitted = 0;
+		
+		for( Bid bid : allBids ) {
+		
+			if( bid.getSale().getCryptocurrency().equals( cryptocurrency ) && bid.getExpirationTime().after( new Timestamp( System.currentTimeMillis() ) ) ) {
+				
+				totalCommitted += bid.getBidValue();
+				
+			}
+			
+		}
+		
+		return totalCommitted;
+		
+	}
+
 }
