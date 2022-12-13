@@ -43,6 +43,7 @@ public class WalletServiceImpl implements WalletService {
 			// assign wallet ID to wallet for that user
 			Wallet wallet = new Wallet();
 			wallet.setWalletId(walletId);
+			wallet.setBalance(0.0);
 			
 			// create wallet
 			create(wallet);
